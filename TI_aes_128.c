@@ -1,46 +1,22 @@
-/* --COPYRIGHT--,BSD 
- * Copyright (c) 2011, Texas Instruments Incorporated
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * *  Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * *  Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * *  Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * --/COPYRIGHT--*/
-/*
- * TI_aes_128.c
- *
- *  Created on: Nov 3, 2011
- *      Author: Eric Peeters
- *
- *  Description: Implementation of the AES-128 as defined by the FIPS PUB 197: 
- *  the official AES standard
+/* Steps for the encreyption 
+ * 1. SubBytes: byte by byte substitution using look up table
+ * this reduces correlation between input and output bits
+ * input bytes divided into four-bit patterns representing a value between 0 and 15 (0 through F)
+ * one hex value is used as row index and the other as column
+ * 
+ * 2. Shift rows : first row remains the same, second row is shifted circularly one byte to the left
+ * the third row is shifted by two bytes and the fourth by three
+ * 
+ * 3. Mix Columns: Function of all the other bytes in the same column
+ * each byte is replaced by 2x that byte + 3x next byte in the column + 
+ * the following byte in the column + the byte that follows that
+ * 
+ * 
  */
 
 
-// foreward sbox
+//Substitution box for first step of the algorithm
+//16byte x 16byte 'lookup table' 
 const unsigned char sbox[256] =   {
 //0     1    2      3     4    5     6     7      8    9     A      B    C     D     E     F
 0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76, //0
@@ -60,7 +36,7 @@ const unsigned char sbox[256] =   {
 0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf, //E
 0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16 }; //F
 
-// inverse sbox
+//inverse sub box for decryption
 const unsigned char rsbox[256] =
 { 0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb
 , 0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb
@@ -102,8 +78,7 @@ unsigned char galois_mul2(unsigned char value)
 // The code was optimized for memory (flash and ram)
 // Combining both encryption and decryption resulted in a slower implementation
 // but much smaller than the 2 functions separated
-// This function only implements AES-128 encryption and decryption (AES-192 and 
-// AES-256 are not supported by this code) 
+// This function only implements AES-128 encryption and decryption 
 void aes_enc_dec(unsigned char *state, unsigned char *key, unsigned char dir)
 {
   unsigned char buf1, buf2, buf3, buf4, round, i;
